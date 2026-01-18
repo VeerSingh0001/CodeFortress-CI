@@ -1,1 +1,4 @@
-aws_access_key_id=AKIAIMW6QF4TEXAMPLE
+-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDWA
+Base64EncodedStringThatLooksLikeARealPrivateKeyButIsFake
+-----END PRIVATE KEY-----
