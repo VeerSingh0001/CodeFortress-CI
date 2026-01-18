@@ -1,3 +1,25 @@
+# Validation Report: Security Gate Enforcement (Secret Scanning)
+
+**Date:** January 18, 2026
+**Test Case:** SC-01 (Hardcoded Credential Detection)
+**Status:** ✅ PASSED (Build Failed as Expected)
+
+## 1. Objective
+To verify that the "Security Gate" policy automatically blocks commits containing high-entropy secrets (e.g., AWS Keys, Database Passwords) to prevent sensitive data leakage.
+
+## 2. Methodology
+* **Tool:** TruffleHog (v3.x) via Pre-Commit Hook & Jenkins Pipeline.
+* **Scenario:** Attempted to commit a Python file (`db_config.py`) containing a hardcoded database connection string with a visible password. 
+```bash
+# Production Database Configuration
+# TODO: Move this to environment variables later
+DB_CONNECTION_STRING = "postgres://admin:SuperSecretPassword123!@production-db.aws.com:5432/customers"
+```
+
+## 3. Execution Evidence
+Below is the raw log output demonstrating the interception and blocking of the commit:
+
+```text
 git commit -m "TEST: Intentionally breaking gate with DB Password"
 TruffleHog (Docker)......................................................Failed
 - hook id: trufflehog-docker
