@@ -1,0 +1,5 @@
+[default]
+# A realistic looking AWS Key ID (20 chars, starts with AKIA, no "EXAMPLE")
+aws_access_key_id=AKIA5QY7A2B4C6D8E1F3
+# A high-entropy random string for the secret (40 chars, looks like real random data)
+aws_secret_access_key=9v35ls78s8s9d8s9d8s9d8s9d8s9d8s9d8s9d8s9
