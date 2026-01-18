@@ -1,8 +1,5 @@
 # CodeFortress CI: Secure DevSecOps Pipeline
 
-**Project:** Automated Application Security Pipeline (Project 1)
-**Developer:** [Your Name]
-**Company:** Infotact Solutions
 
 ## 🛡️ Project Overview
 This project implements a "Shift Left" security strategy. It integrates automated security gates into the CI/CD pipeline to detect secrets and vulnerabilities before deployment.
