@@ -16,3 +16,5 @@ This project implements a "Shift Left" security strategy. It integrates automate
 * `src/`: Source code of the target Python application.
 * `Jenkinsfile`: The CI/CD pipeline definition.
 * `.pre-commit-config.yaml`: Local security gate configuration.
+
+Trigger Test: Verifying Jenkins polling.
