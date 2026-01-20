@@ -1,7 +1,7 @@
 from flask import Flask, request
 
 app = Flask(__name__)
-API_KEY = "AIzaSyA-FakeKeyForTestingRandomString99"
+API_KEY = "AIzaSyD_98a7s6d5f4g3h2j1k0l9m8n7b6v5c4x"
 
 @app.route('/')
 def home():
