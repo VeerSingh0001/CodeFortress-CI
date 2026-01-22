@@ -3,50 +3,65 @@ pipeline {
 
     environment {
         TRUFFLEHOG_VERSION = '3.63.0'
+        // Access the credentials we just made
+        GIT_CREDS = credentials('github-write-token') 
     }
 
     stages {
-        // Stage 1: Clean Workspace (Prevents "ghost" files from previous runs)
         stage('Clean Workspace') {
             steps {
-                echo '--- 0. Cleaning Workspace ---'
                 deleteDir()
             }
         }
 
-        // Stage 2: Pull Code
         stage('Checkout Source') {
             steps {
-                echo '--- 1. Cloning Repository ---'
-                // This automatically pulls the code from the repo where this Jenkinsfile lives
+                // Checkout the branch that triggered the build
                 checkout scm
+                
+                // Configure Git Identity for the merge later
+                sh 'git config user.email "jenkins@codefortress.local"'
+                sh 'git config user.name "Jenkins CI"'
             }
         }
 
-        // Stage 3: Security Gate (Week 1 Requirement)
         stage('Security Gate: Secret Scan') {
             steps {
-                echo '--- 2. Running TruffleHog Security Gate ---'
                 script {
-                    // 1. Download TruffleHog to /tmp (Safe location)
                     sh "curl -L -o /tmp/trufflehog.tar.gz https://github.com/trufflesecurity/trufflehog/releases/download/v${TRUFFLEHOG_VERSION}/trufflehog_${TRUFFLEHOG_VERSION}_linux_amd64.tar.gz"
-                    
-                    // 2. Extract to /tmp
                     sh "tar -xzf /tmp/trufflehog.tar.gz -C /tmp"
-                    
-                    // 3. Run Scan
-                    // We scan '.' (current folder). The tool ignores itself because it's in /tmp
                     sh '/tmp/trufflehog filesystem . --fail --no-update --exclude-paths .trufflehog-ignore'
                 }
             }
         }
 
-        // Stage 4: Build (Only runs if Security Gate passes)
-        stage('Build Artifact') {
+        // TODO: Week 2 - Add SonarQube Stage Here
+        
+        stage('Auto-Merge to Main') {
+            // ONLY run this stage if we are on the 'dev' branch
+            when {
+                branch 'dev'
+            }
             steps {
-                echo '--- 3. Secrets Verified. Proceeding to Build. ---'
-                // Simulating a build process
-                sh 'echo "Building Secure App v1.0..."'
+                echo '--- Security Checks Passed on DEV. Merging to MAIN... ---'
+                script {
+                    sh '''
+                        # 1. Authenticate using the token
+                        git remote set-url origin https://${GIT_CREDS_USR}:${GIT_CREDS_PSW}@github.com/VeerSingh0001/CodeFortress-CI.git
+                        
+                        # 2. Fetch latest main
+                        git fetch origin main:main
+                        
+                        # 3. Checkout Main
+                        git checkout main
+                        
+                        # 4. Merge Dev into Main
+                        git merge dev
+                        
+                        # 5. Push changes
+                        git push origin main
+                    '''
+                }
             }
         }
     }
