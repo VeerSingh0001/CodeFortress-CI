@@ -9,7 +9,7 @@ def home():
 
 @app.route('/login', methods=['POST'])
 def login():
-    # TODO: Implement secure authentication
+    
     username = request.form.get('username')
     return f"Login attempt for user: {username}"
 
