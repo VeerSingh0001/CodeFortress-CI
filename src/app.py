@@ -2,8 +2,11 @@ import os
 import sqlite3
 import hashlib
 from flask import Flask, request
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
+csrf = CSRFProtect()
+csrf.init_app(app) 
 
 # VULNERABILITY 1: Hardcoded Secret (SonarQube should flag this as a Security Hotspot)
 SECRET_KEY = "admin123"
@@ -19,7 +22,7 @@ def login():
     
     # VULNERABILITY 2: Weak Cryptography (MD5 is broken)
     # SonarQube Rule: "MD5 and SHA-1 should not be used"
-    hashed_password = hashlib.md5(password.encode()).hexdigest()
+    hashed_password = hashlib.sha512(password.encode()).hexdigest()
     
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
