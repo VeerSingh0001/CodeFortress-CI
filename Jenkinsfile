@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         TRUFFLEHOG_VERSION = '3.63.0'
-        // Access the credentials we just made
+        // Use the ID you created in Jenkins Credentials
         GIT_CREDS = credentials('github-write-token') 
     }
 
@@ -16,10 +16,10 @@ pipeline {
 
         stage('Checkout Source') {
             steps {
-                // Checkout the branch that triggered the build
+                // This downloads the code from 'dev' (as per your job config)
                 checkout scm
                 
-                // Configure Git Identity for the merge later
+                // Configure Git so it can merge
                 sh 'git config user.email "jenkins@codefortress.local"'
                 sh 'git config user.name "Jenkins CI"'
             }
@@ -35,30 +35,24 @@ pipeline {
             }
         }
 
-        // TODO: Week 2 - Add SonarQube Stage Here
-        
         stage('Auto-Merge to Main') {
-            // ONLY run this stage if we are on the 'dev' branch
-            when {
-                branch 'dev'
-            }
+           
             steps {
-                echo '--- Security Checks Passed on DEV. Merging to MAIN... ---'
+                echo '--- Security Checks Passed. Merging to MAIN... ---'
                 script {
                     sh '''
-                        # 1. Authenticate using the token
+                        # 1. Setup Remote URL with Credentials
                         git remote set-url origin https://${GIT_CREDS_USR}:${GIT_CREDS_PSW}@github.com/VeerSingh0001/CodeFortress-CI.git
                         
-                        # 2. Fetch latest main
-                        git fetch origin main:main
+                        # 2. Fetch all branches (Jenkins usually only fetches one)
+                        git fetch --all
                         
-                        # 3. Checkout Main
+                        # 3. Checkout Main and Merge Dev
+                        # We force checkout main, then merge the remote dev branch
                         git checkout main
+                        git merge origin/dev
                         
-                        # 4. Merge Dev into Main
-                        git merge dev
-                        
-                        # 5. Push changes
+                        # 4. Push the result
                         git push origin main
                     '''
                 }
