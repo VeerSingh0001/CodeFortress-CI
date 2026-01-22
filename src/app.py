@@ -1,6 +1,9 @@
 from flask import Flask, request
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
+csrf = CSRFProtect()
+csrf.init_app(app) 
 API_KEY = "AKIA5QY5P43355EXAMPLE"
 
 @app.route('/')
@@ -9,7 +12,7 @@ def home():
 
 @app.route('/login', methods=['POST'])
 def login():
-    
+
     username = request.form.get('username')
     return f"Login attempt for user: {username}"
 
