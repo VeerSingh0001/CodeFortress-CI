@@ -1,8 +1,11 @@
 import sqlite3
 import os
 from flask import Flask, request, make_response, render_template_string
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
+csrf=CSRFProtect(app)
+csrf.init_app(app)
 
 # Helper to setup a dummy database so the app runs
 def init_db():
