@@ -61,24 +61,34 @@ pipeline {
                     sh 'docker run -d --name ci-test-app -p 5000:5000 ci-target-app'
                     sh 'sleep 10'
                     
-                    echo '--- 2. Running ZAP Active Scan (As Root) ---'
-            
+                    echo '--- 2. Running ZAP Active Scan ---'
                     sh 'docker rm -f zap-scanner 2>/dev/null || true'
                     sh 'docker volume rm zap-vol 2>/dev/null || true'
-
                     sh 'docker volume create zap-vol'
                     
-                    sh "docker run --user 0 --name zap-scanner -v zap-vol:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -I || true"
+    
+                    sh "docker run --user 0 --name zap-scanner -v zap-vol:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -J report.json -I || true"
                     
-                    echo '--- 3. Extracting Report ---'
+                    echo '--- 3. Extracting Reports ---'
                     sh 'mkdir -p zap_reports'
-          
                     sh 'docker cp zap-scanner:/zap/wrk/report.html ./zap_reports/report.html'
+                    sh 'docker cp zap-scanner:/zap/wrk/report.json ./zap_reports/report.json'
                     
-   
                     sh 'docker rm -f zap-scanner'
                     sh 'docker volume rm zap-vol'
                     sh 'docker rm -f ci-test-app'
+
+                    echo '--- 4. Enforcing Security Gate Policy ---'
+                   
+                    sh '''
+                        if grep -qE '"risk": "(High|Medium|Critical)"' ./zap_reports/report.json; then
+                            echo "🚨 SECURITY GATE FAILED: Critical, High, or Medium vulnerabilities detected!"
+                            echo "Check zap_reports/report.html for details."
+                            exit 1
+                        else
+                            echo "✅ SECURITY GATE PASSED: No significant vulnerabilities found."
+                        fi
+                    '''
                 }
             }
         }
