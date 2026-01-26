@@ -55,22 +55,28 @@ pipeline {
         stage('Security Gate 3: OWASP ZAP (DAST)') {
             steps {
                 script {
-                    echo '--- 1. Building & Starting the App ---'
-                    // Clean up any leftovers first
-                    sh 'docker rm -f ci-test-app || true' 
+                    echo '--- 1. Building & Starting Staging Environment ---'
+                    // Clean up potential leftovers
+                    sh 'docker rm -f ci-test-app 2>/dev/null || true' 
                     
-                    // Build and Run
+                    // Containerize the Target App
                     sh 'docker build -t ci-target-app .'
+                    
+                    // Deploy to Staging (Port 5000)
                     sh 'docker run -d --name ci-test-app -p 5000:5000 ci-target-app'
                     
-                    // Wait for App to be ready
+                    // Create a directory for the attack report
+                    sh 'mkdir -p zap_reports'
+                    sh 'chmod 777 zap_reports'
+                    
+                    // Wait for the app to initialize
                     sh 'sleep 10'
                     
-                    echo '--- 2. Running ZAP Attack ---'
+                    echo '--- 2. Running ZAP Active Scan (Spider + Attack) ---'
                     
-                    sh "docker run --rm ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://${HOST_IP}:5000 || true"
+                    sh "docker run --rm -v \$(pwd)/zap_reports:/zap/wrk/:rw ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -I || true"
                     
-                    echo '--- 3. Teardown ---'
+                    echo '--- 3. Teardown Staging ---'
                     sh 'docker rm -f ci-test-app'
                 }
             }
