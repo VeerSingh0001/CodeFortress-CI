@@ -57,30 +57,29 @@ pipeline {
                 script {
                     echo '--- 1. Building & Starting Staging Environment ---'
                     sh 'docker rm -f ci-test-app 2>/dev/null || true' 
-                    
-                    // Build and Run Staging App
                     sh 'docker build -t ci-target-app .'
                     sh 'docker run -d --name ci-test-app -p 5000:5000 ci-target-app'
-                    
-                 
                     sh 'sleep 10'
                     
                     echo '--- 2. Running ZAP Active Scan ---'
-                    
+               
                     sh 'docker rm -f zap-scanner 2>/dev/null || true'
+                    sh 'docker volume rm zap-vol 2>/dev/null || true'
+
+                    sh 'docker volume create zap-vol'
                     
-                   
-                    sh "docker run --name zap-scanner ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -I || true"
+                
+                    sh "docker run --name zap-scanner -v zap-vol:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -I || true"
                     
                     echo '--- 3. Extracting Report ---'
-                    // 2. Create local directory
                     sh 'mkdir -p zap_reports'
                     
-                    // 3. Copy the report OUT of the stopped container
+    
                     sh 'docker cp zap-scanner:/zap/wrk/report.html ./zap_reports/report.html'
                     
-                    // 4. Clean up
+             
                     sh 'docker rm -f zap-scanner'
+                    sh 'docker volume rm zap-vol'
                     sh 'docker rm -f ci-test-app'
                 }
             }
