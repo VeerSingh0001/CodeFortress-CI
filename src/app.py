@@ -1,8 +1,11 @@
 import os
 import sqlite3
 from flask import Flask, request
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
+csrf = CSRFProtect(app)
+csrf.init_app(app)
 
 @app.route('/')
 def home():
