@@ -6,6 +6,7 @@ pipeline {
         scannerHome = tool 'sonar-scanner'
         GIT_CREDS = credentials('github-write-token')
         TRUFFLEHOG_VERSION = '3.63.0'
+        HOST_IP = '172.17.0.1'
     }
 
     stages {
@@ -46,6 +47,31 @@ pipeline {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+       
+        stage('Security Gate 3: OWASP ZAP (DAST)') {
+            steps {
+                script {
+                    echo '--- 1. Building & Starting the App ---'
+                    // Clean up any leftovers first
+                    sh 'docker rm -f ci-test-app || true' 
+                    
+                    // Build and Run
+                    sh 'docker build -t ci-target-app .'
+                    sh 'docker run -d --name ci-test-app -p 5000:5000 ci-target-app'
+                    
+                    // Wait for App to be ready
+                    sh 'sleep 10'
+                    
+                    echo '--- 2. Running ZAP Attack ---'
+                    
+                    sh "docker run --rm ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://${HOST_IP}:5000 || true"
+                    
+                    echo '--- 3. Teardown ---'
+                    sh 'docker rm -f ci-test-app'
                 }
             }
         }
