@@ -14,8 +14,8 @@ COPY --chown=dockeruser:dockeruser src/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 3. Copy the app code and DB, verifying ownership
-COPY --chown=dockeruser:dockeruser app.py .
-COPY --chown=dockeruser:dockeruser users.db .
+COPY --chown=dockeruser:dockeruser src/app.py .
+COPY --chown=dockeruser:dockeruser src/users.db .
 
 # 4. CRITICAL: Switch to the non-root user
 USER dockeruser
