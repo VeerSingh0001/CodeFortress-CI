@@ -80,19 +80,14 @@ pipeline {
 
                     echo '--- 4. Enforcing Security Gate Policy ---'
                     sh '''
-                        # 1. Verify Report Exists
+
                         if [ ! -s ./zap_reports/report.json ]; then
                             echo "❌ ERROR: ZAP Report is missing or empty! Failing the build."
                             exit 1
                         fi
 
-                        # 2. Debug: Print snippet
-                        echo "--- JSON REPORT SNIPPET ---"
-                        head -n 20 ./zap_reports/report.json
                         echo "---------------------------"
 
-                        # 3. The Trap: FIXED REGEX with double backslash (\\\\s)
-                        # This ensures the shell receives literal \\s to match whitespace
                         if grep -qE '"risk(desc)?":\\s*"(High|Medium|Critical)' ./zap_reports/report.json; then
                             echo "🚨 SECURITY GATE FAILED: Critical, High, or Medium vulnerabilities detected!"
                             echo "Check zap_reports/report.html for details."
