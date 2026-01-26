@@ -1,22 +1,35 @@
+import os
+import sqlite3
 from flask import Flask, request
-from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
-csrf = CSRFProtect()
-csrf.init_app(app) 
-aws_access_key_id="AKIAIOSFODNN7EXAMPLE"
-aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-
 
 @app.route('/')
 def home():
-    return "Welcome to CodeFortress Secure App v1.0"
+    return "Welcome to the Vulnerable App!"
 
 @app.route('/login', methods=['POST'])
 def login():
-
     username = request.form.get('username')
-    return f"Login attempt for user: {username}"
+    
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    
+    # ❌ VULNERABILITY: SQL Injection
+    # We are using string formatting (%) to build the query.
+    # An attacker can input: admin' OR '1'='1
+    query = "SELECT * FROM users WHERE username = '%s'" % username
+    
+    # Execute the raw string
+    c.execute(query)
+    
+    user = c.fetchone()
+    conn.close()
+    
+    if user:
+        return "Login Successful"
+    else:
+        return "Login Failed"
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)
