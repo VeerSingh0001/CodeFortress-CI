@@ -3,7 +3,6 @@ repos:
     hooks:
       - id: trufflehog-docker
         name: 🐷 TruffleHog (Secrets Scan)
-        # Fix: Changed '--exclude-paths .trufflehog-ignore' to '/pwd/.trufflehog-ignore'
-        entry: bash -c 'docker run --rm -v "$(pwd):/pwd" trufflesecurity/trufflehog:latest filesystem /pwd --no-update --fail --only-verified --exclude-paths /pwd/.trufflehog-ignore'
+        entry: bash -c 'docker run --rm -v "$(pwd):/pwd" trufflesecurity/trufflehog:latest filesystem /pwd --no-update --fail --exclude-paths /pwd/.trufflehog-ignore'
         language: system
         pass_filenames: false
