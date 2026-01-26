@@ -66,7 +66,7 @@ pipeline {
                     sh 'docker volume rm zap-vol 2>/dev/null || true'
                     sh 'docker volume create zap-vol'
                     
-    
+                 
                     sh "docker run --user 0 --name zap-scanner -v zap-vol:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -J report.json -I || true"
                     
                     echo '--- 3. Extracting Reports ---'
@@ -79,9 +79,19 @@ pipeline {
                     sh 'docker rm -f ci-test-app'
 
                     echo '--- 4. Enforcing Security Gate Policy ---'
-                   
                     sh '''
-                        if grep -qE '"risk": "(High|Medium|Critical)"' ./zap_reports/report.json; then
+                       
+                        if [ ! -s ./zap_reports/report.json ]; then
+                            echo "❌ ERROR: ZAP Report is missing or empty! Failing the build."
+                            exit 1
+                        fi
+                        
+                        echo "--- JSON REPORT SNIPPET ---"
+                        head -n 20 ./zap_reports/report.json
+                        echo "---------------------------"
+
+                        
+                        if grep -qE '"risk(desc)?":\s*"(High|Medium|Critical)' ./zap_reports/report.json; then
                             echo "🚨 SECURITY GATE FAILED: Critical, High, or Medium vulnerabilities detected!"
                             echo "Check zap_reports/report.html for details."
                             exit 1
