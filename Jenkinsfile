@@ -56,27 +56,31 @@ pipeline {
             steps {
                 script {
                     echo '--- 1. Building & Starting Staging Environment ---'
-                    // Clean up potential leftovers
                     sh 'docker rm -f ci-test-app 2>/dev/null || true' 
                     
-                    // Containerize the Target App
+                    // Build and Run Staging App
                     sh 'docker build -t ci-target-app .'
-                    
-                    // Deploy to Staging (Port 5000)
                     sh 'docker run -d --name ci-test-app -p 5000:5000 ci-target-app'
                     
-                    // Create a directory for the attack report
-                    sh 'mkdir -p zap_reports'
-                    sh 'chmod 777 zap_reports'
-                    
-                    // Wait for the app to initialize
+                 
                     sh 'sleep 10'
                     
-                    echo '--- 2. Running ZAP Active Scan (Spider + Attack) ---'
+                    echo '--- 2. Running ZAP Active Scan ---'
                     
-                    sh "docker run --rm -v \$(pwd)/zap_reports:/zap/wrk/:rw ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -I || true"
+                    sh 'docker rm -f zap-scanner 2>/dev/null || true'
                     
-                    echo '--- 3. Teardown Staging ---'
+                   
+                    sh "docker run --name zap-scanner ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -I || true"
+                    
+                    echo '--- 3. Extracting Report ---'
+                    // 2. Create local directory
+                    sh 'mkdir -p zap_reports'
+                    
+                    // 3. Copy the report OUT of the stopped container
+                    sh 'docker cp zap-scanner:/zap/wrk/report.html ./zap_reports/report.html'
+                    
+                    // 4. Clean up
+                    sh 'docker rm -f zap-scanner'
                     sh 'docker rm -f ci-test-app'
                 }
             }
