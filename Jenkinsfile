@@ -66,7 +66,7 @@ pipeline {
                     sh 'docker volume rm zap-vol 2>/dev/null || true'
                     sh 'docker volume create zap-vol'
                     
-                 
+                    // Run ZAP
                     sh "docker run --user 0 --name zap-scanner -v zap-vol:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -J report.json -I || true"
                     
                     echo '--- 3. Extracting Reports ---'
@@ -80,18 +80,20 @@ pipeline {
 
                     echo '--- 4. Enforcing Security Gate Policy ---'
                     sh '''
-                       
+                        # 1. Verify Report Exists
                         if [ ! -s ./zap_reports/report.json ]; then
                             echo "❌ ERROR: ZAP Report is missing or empty! Failing the build."
                             exit 1
                         fi
-                        
+
+                        # 2. Debug: Print snippet
                         echo "--- JSON REPORT SNIPPET ---"
                         head -n 20 ./zap_reports/report.json
                         echo "---------------------------"
 
-                        
-                        if grep -qE '"risk(desc)?":\s*"(High|Medium|Critical)' ./zap_reports/report.json; then
+                        # 3. The Trap: FIXED REGEX with double backslash (\\\\s)
+                        # This ensures the shell receives literal \\s to match whitespace
+                        if grep -qE '"risk(desc)?":\\s*"(High|Medium|Critical)' ./zap_reports/report.json; then
                             echo "🚨 SECURITY GATE FAILED: Critical, High, or Medium vulnerabilities detected!"
                             echo "Check zap_reports/report.html for details."
                             exit 1
