@@ -100,6 +100,26 @@ pipeline {
             }
         }
 
+        stage('Reporting: Upload to DefectDojo') {
+            steps {
+                withCredentials([string(credentialsId: 'defectdojo-api-key', variable: 'DOJO_API_KEY')]) {
+                    script {
+                        echo '--- Uploading Reports to DefectDojo ---'
+                        // We use a Python container to run the upload script
+                        // We mount the current workspace so it can see the script and the report
+                        sh '''
+                        docker run --rm \
+                            -v $(pwd):/app \
+                            -w /app \
+                            -e DOJO_API_KEY=$DOJO_API_KEY \
+                            python:3.9-slim \
+                            /bin/bash -c "pip install requests && python defectdojo_upload.py 'ZAP Scan' ./zap_reports/report.json"
+                        '''
+                    }
+                }
+            }
+        }
+
         stage('Auto-Merge to Main') {
             steps {
                 script {
