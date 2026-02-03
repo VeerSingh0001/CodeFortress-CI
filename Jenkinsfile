@@ -149,9 +149,9 @@ pipeline {
             }
         }
     }
-}
 
-post {
+
+    post {
         // IF THE BUILD FAILS (Red)
         failure {
             script {
@@ -176,3 +176,4 @@ post {
     }
 
 }
+
