@@ -67,20 +67,19 @@ pipeline {
                         sh 'docker volume rm zap-vol 2>/dev/null || true'
                         sh 'docker volume create zap-vol'
                         
-                        // Run ZAP
-                        sh "docker run --user 0 --name zap-scanner -v zap-vol:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -J report.json -I || true"
+                        sh "docker run --user 0 --name zap-scanner -v zap-vol:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -J report.json -x report.xml -I || true"
                         
                         echo '--- 3. Extracting Reports ---'
                         sh 'mkdir -p zap_reports'
                         sh 'docker cp zap-scanner:/zap/wrk/report.html ./zap_reports/report.html'
                         sh 'docker cp zap-scanner:/zap/wrk/report.json ./zap_reports/report.json'
+                        sh 'docker cp zap-scanner:/zap/wrk/report.xml ./zap_reports/report.xml'
                         
                         sh 'docker rm -f zap-scanner'
                         sh 'docker volume rm zap-vol'
                         sh 'docker rm -f ci-test-app'
 
                         echo '--- 4. Enforcing Security Gate Policy ---'
-                        
                         if (readFile('zap_reports/report.json').trim().isEmpty()) {
                             error("❌ ZAP Report is missing or empty!")
                         }
