@@ -120,6 +120,21 @@ pipeline {
             }
         }
 
+        stage('Final Security Decision') {
+            steps {
+                script {
+                    // Check if previous stages set the build result to FAILURE
+                    if (currentBuild.result == 'FAILURE') {
+                        echo "🛑 BLOCKING MERGE: Security Gates Failed."
+                        error("Pipeline stopped due to security vulnerabilities. Check DefectDojo for details.")
+                    } else {
+                        echo "✅ QUALITY GATES PASSED: Proceeding to Merge."
+                    }
+                }
+            }
+        }
+
+
         stage('Auto-Merge to Main') {
             steps {
                 script {
