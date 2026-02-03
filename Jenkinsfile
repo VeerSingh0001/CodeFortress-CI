@@ -107,7 +107,7 @@ pipeline {
                         // We mount the current workspace so it can see the script and the report
                         sh '''
                         docker run --rm \
-                            -v $(pwd):/app \
+                            -v $(pwd):/src \
                             -w /app \
                             -e DOJO_API_KEY=$DOJO_API_KEY \
                             python:3.9-slim \
