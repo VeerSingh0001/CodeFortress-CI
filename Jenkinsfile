@@ -103,16 +103,27 @@ pipeline {
                 withCredentials([string(credentialsId: 'defectdojo-api-key', variable: 'DOJO_API_KEY')]) {
                     script {
                         echo '--- Uploading Reports to DefectDojo ---'
-                        // We use a Python container to run the upload script
-                        // We mount the current workspace so it can see the script and the report
+                        
+                    
+                        sh 'ls -l src/defectdojo_upload.py || echo "❌ Script missing from Workspace!"'
+
+                        // 2. Start a temporary Python container
+                        sh 'docker rm -f dd-uploader 2>/dev/null || true'
+                        sh 'docker run -d --name dd-uploader python:3.9-slim sleep 300'
+                        
+                        // 3. Copy the Script AND the Report INTO the container
+                        // This bypasses the volume mapping issue completely.
+                        sh 'docker cp src/defectdojo_upload.py dd-uploader:/tmp/upload_script.py'
+                        sh 'docker cp zap_reports/report.json dd-uploader:/tmp/report.json'
+                        
+                        // 4. Run the script inside the container
                         sh '''
-                        docker run --rm \
-                            -v $(pwd):/src \
-                            -w /app \
-                            -e DOJO_API_KEY=$DOJO_API_KEY \
-                            python:3.9-slim \
-                            /bin/bash -c "pip install requests && python defectdojo_upload.py 'ZAP Scan' ./zap_reports/report.json"
+                            docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
+                            bash -c "pip install requests && python /tmp/upload_script.py 'ZAP Scan' /tmp/report.json"
                         '''
+                        
+                        // 5. Cleanup
+                        sh 'docker rm -f dd-uploader'
                     }
                 }
             }
