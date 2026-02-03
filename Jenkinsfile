@@ -103,25 +103,17 @@ pipeline {
                     script {
                         echo '--- Uploading Reports to DefectDojo ---'
                         
-                    
-                        sh 'ls -l src/defectdojo_upload.py || echo "❌ Script missing from Workspace!"'
-
-                        // 2. Start a temporary Python container
                         sh 'docker rm -f dd-uploader 2>/dev/null || true'
                         sh 'docker run -d --name dd-uploader python:3.9-slim sleep 300'
                         
-                        // 3. Copy the Script AND the Report INTO the container
-                        // This bypasses the volume mapping issue completely.
-                        sh 'docker cp src/defectdojo_upload.py dd-uploader:/tmp/upload_script.py'
-                        sh 'docker cp zap_reports/report.json dd-uploader:/tmp/report.json'
+                        sh 'docker cp defectdojo_upload.py dd-uploader:/tmp/upload_script.py'
+                        sh 'docker cp zap_reports/report.xml dd-uploader:/tmp/report.xml'
                         
-                        // 4. Run the script inside the container
                         sh '''
                             docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
-                            bash -c "pip install requests && python /tmp/upload_script.py 'ZAP Scan' /tmp/report.json"
+                            bash -c "pip install requests && python /tmp/upload_script.py 'ZAP Scan' /tmp/report.xml"
                         '''
                         
-                        // 5. Cleanup
                         sh 'docker rm -f dd-uploader'
                     }
                 }
