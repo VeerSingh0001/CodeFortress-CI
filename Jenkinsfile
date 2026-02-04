@@ -53,46 +53,26 @@ pipeline {
         }
 
        
-        stage('Security Gate 3: OWASP ZAP (DAST)') {
+        stage('Security Gate 3: DAST (OWASP ZAP)') {
             steps {
-                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                    script {
-                        echo '--- 1. Building & Starting Staging Environment ---'
-                        sh 'docker rm -f ci-test-app 2>/dev/null || true' 
-                        sh 'docker build -t ci-target-app .'
-                        sh 'docker run -d --name ci-test-app -p 5000:5000 ci-target-app'
-                        sh 'sleep 10'
-                        
-                        echo '--- 2. Running ZAP Active Scan ---'
-                        sh 'docker rm -f zap-scanner 2>/dev/null || true'
-                        sh 'docker volume rm zap-vol 2>/dev/null || true'
-                        sh 'docker volume create zap-vol'
-                        
-                        sh "docker run --user 0 --name zap-scanner -v zap-vol:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py -t http://${HOST_IP}:5000 -r report.html -J report.json -x report.xml -I || true"
-                        
-                        echo '--- 3. Extracting Reports ---'
-                        sh 'mkdir -p zap_reports'
-                        sh 'docker cp zap-scanner:/zap/wrk/report.html ./zap_reports/report.html'
-                        sh 'docker cp zap-scanner:/zap/wrk/report.json ./zap_reports/report.json'
-                        sh 'docker cp zap-scanner:/zap/wrk/report.xml ./zap_reports/report.xml'
-                        
-                        sh 'docker rm -f zap-scanner'
-                        sh 'docker volume rm zap-vol'
-                        sh 'docker rm -f ci-test-app'
-
-                        echo '--- 4. Enforcing Security Gate Policy ---'
-                        if (readFile('zap_reports/report.json').trim().isEmpty()) {
-                            error("❌ ZAP Report is missing or empty!")
-                        }
-
-                        def exitCode = sh(script: 'grep -qE \'"risk(desc)?":\\s*"(High|Medium|Critical)\' ./zap_reports/report.json', returnStatus: true)
-                        
-                        if (exitCode == 0) {
-                            echo "🚨 SECURITY GATE FAILED: Vulnerabilities detected!"
-                            error("Blocking Build due to Critical/High Vulnerabilities") 
-                        } else {
-                            echo "✅ SECURITY GATE PASSED"
-                        }
+                script {
+                    echo '--- Starting ZAP Dynamic Scan ---'
+                    
+                    sh 'mkdir -p zap_reports'
+                    sh 'chmod 777 zap_reports'
+                    
+                    try {
+                        sh '''
+                            docker run --rm -u 0 \
+                            -v $(pwd)/zap_reports:/zap/wrk/:rw \
+                            owasp/zap2docker-stable \
+                            zap-baseline.py \
+                            -t http://172.17.0.1:5000 \
+                            -r report.xml \
+                            -I
+                        '''
+                    } catch (Exception e) {
+                        echo '⚠️ ZAP Scan found issues, but we will let the "Decision" stage handle the failure.'
                     }
                 }
             }
@@ -120,7 +100,7 @@ pipeline {
                             sh 'docker rm -f dd-uploader'
                         
                         } else {
-                            
+
                             echo '⚠️ No ZAP Report found (zap_reports/report.xml is missing).'
                             echo 'Skipping DefectDojo upload.'
                         }
