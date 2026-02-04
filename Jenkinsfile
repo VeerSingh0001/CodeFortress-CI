@@ -158,7 +158,7 @@ pipeline {
                 echo '✅ PIPELINE SUCCESS! Sending Alert...'
                 sh '''
                     
-                    printf '{"text": "✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and ready for merge.\\n*Project:* %s\\n*Build:* %s"}' "$JOB_NAME" "$BUILD_NUMBER" > payload.json
+                    printf '{"text": "✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and merged. \\n*Project:* %s\\n*Build:* %s"}' "$JOB_NAME" "$BUILD_NUMBER" > payload.json
                     
                     curl -v -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
                 '''
