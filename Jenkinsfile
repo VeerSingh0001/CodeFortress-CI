@@ -33,9 +33,13 @@ pipeline {
             }
         }
 
-        stage('Security Gate 2: SonarQube SAST') {
+        stage('Security Gate 2: SAST (Bandit & SonarQube)') {
             steps {
                 echo '--- Running Static Analysis ---'
+
+                sh 'pip install bandit'
+                sh 'bandit -r . -f json -o bandit_report.json || true'
+
                 // Connects to the server
                 withSonarQubeEnv('sonarqube-server') {
                     sh "${scannerHome}/bin/sonar-scanner"
@@ -82,28 +86,32 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'defectdojo-api-key', variable: 'DOJO_API_KEY')]) {
                     script {
+                        // Setup the Uploader Container
+                        sh 'docker rm -f dd-uploader 2>/dev/null || true'
+                        sh 'docker run -d --name dd-uploader python:3.9-slim sleep 300'
+                        sh 'docker cp defectdojo_upload.py dd-uploader:/tmp/upload_script.py'
                         
+                        // --- UPLOAD 1: ZAP (DAST) ---
                         if (fileExists('zap_reports/report.xml')) {
-                            echo '--- Found ZAP Report. Uploading... ---'
-                            
-                            sh 'docker rm -f dd-uploader 2>/dev/null || true'
-                            sh 'docker run -d --name dd-uploader python:3.9-slim sleep 300'
-                            
-                            sh 'docker cp defectdojo_upload.py dd-uploader:/tmp/upload_script.py'
-                            sh 'docker cp zap_reports/report.xml dd-uploader:/tmp/report.xml'
-                            
+                            echo '--- Uploading ZAP Report ---'
+                            sh 'docker cp zap_reports/report.xml dd-uploader:/tmp/zap_report.xml'
                             sh '''
                                 docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
-                                bash -c "pip install requests && python /tmp/upload_script.py 'ZAP Scan' /tmp/report.xml"
+                                bash -c "pip install requests && python /tmp/upload_script.py 'ZAP Scan' /tmp/zap_report.xml"
                             '''
-                            
-                            sh 'docker rm -f dd-uploader'
-                        
-                        } else {
-
-                            echo '⚠️ No ZAP Report found (zap_reports/report.xml is missing).'
-                            echo 'Skipping DefectDojo upload.'
                         }
+
+                        // --- UPLOAD 2: BANDIT (SAST) ---
+                        if (fileExists('bandit_report.json')) {
+                            echo '--- Uploading Bandit Report ---'
+                            sh 'docker cp bandit_report.json dd-uploader:/tmp/bandit_report.json'
+                            sh '''
+                                docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
+                                bash -c "python /tmp/upload_script.py 'Bandit Scan' /tmp/bandit_report.json"
+                            '''
+                        }
+                        
+                        sh 'docker rm -f dd-uploader'
                     }
                 }
             }
