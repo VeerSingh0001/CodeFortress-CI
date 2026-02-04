@@ -2,5 +2,4 @@ venv/
 .venv/
 .git/
 docs/
-Jenkinsfile
 .trufflehog-ignore

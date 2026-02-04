@@ -123,7 +123,6 @@ pipeline {
         stage('Final Security Decision') {
             steps {
                 script {
-                    // Check if previous stages set the build result to FAILURE
                     if (currentBuild.result == 'FAILURE') {
                         echo "🛑 BLOCKING MERGE: Security Gates Failed."
                         error("Pipeline stopped due to security vulnerabilities. Check DefectDojo for details.")
@@ -152,25 +151,25 @@ pipeline {
 
 
     post {
-        // IF THE BUILD FAILS (Red)
         failure {
             script {
-                echo '🚨 PIPELINE FAILED! Sending Alert to Slack...'
-                slackSend(
-                    color: '#FF0000', 
-                    message: "🚨 *SECURITY ALERT: Pipeline Failed!* \n*Project:* ${env.JOB_NAME} \n*Build:* #${env.BUILD_NUMBER} \n*URL:* ${env.BUILD_URL} \n*Check DefectDojo for details.*"
-                )
+                echo '🚨 PIPELINE FAILED! Sending Alert via Curl...'
+                sh """
+                    curl -X POST -H 'Content-type: application/json' \
+                    --data '{"text":"🚨 *SECURITY ALERT: Pipeline Failed!* \\n*Project:* ${env.JOB_NAME} \\n*Build:* #${env.BUILD_NUMBER} \\n*Check DefectDojo for details.*"}' \
+                    ${SLACK_WEBHOOK}
+                """
             }
         }
 
-        // IF THE BUILD SUCCEEDS (Green)
         success {
             script {
-                echo '✅ PIPELINE SUCCESS! Sending Alert to Slack...'
-                slackSend(
-                    color: '#36a64f', 
-                    message: "✅ *SUCCESS: Pipeline Passed.* \nCode is secure and ready for merge. \n*Project:* ${env.JOB_NAME} \n*Build:* #${env.BUILD_NUMBER}"
-                )
+                echo '✅ PIPELINE SUCCESS! Sending Alert via Curl...'
+                sh """
+                    curl -X POST -H 'Content-type: application/json' \
+                    --data '{"text":"✅ *SUCCESS: Pipeline Passed.* \\nCode is secure and ready for merge. \\n*Project:* ${env.JOB_NAME} \\n*Build:* #${env.BUILD_NUMBER}"}' \
+                    ${SLACK_WEBHOOK}
+                """
             }
         }
     }
