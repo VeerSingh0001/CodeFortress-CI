@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Defines the tool
-        scannerHome = tool 'SonarScanner'
+        scannerHome = tool 'sonar-scanner'
         GIT_CREDS = credentials('github-write-token')
         TRUFFLEHOG_VERSION = '3.63.0'
         HOST_IP = '172.17.0.1'
@@ -33,46 +33,21 @@ pipeline {
             }
         }
 
-        stage('Security Gate 2: SAST (Bandit & SonarQube)') {
+        stage('Security Gate 2: SonarQube SAST') {
             steps {
                 echo '--- Running Static Analysis ---'
-
-                script {
-                    // --- PART 1: BANDIT ---
-                    echo '--- Running Bandit SAST ---'
-                    sh '''
-                        docker run --rm -v $(pwd):/src python:3.9-slim \
-                        bash -c "pip install bandit && bandit -r /src -f json -o /src/bandit_report.json || true"
-                    '''
-
-                    // --- PART 2: SONARQUBE SCAN ---
-                    echo '--- Running SonarQube Scanner ---'
-                    withSonarQubeEnv('SonarQube') {
-                        sh "${scannerHome}/bin/sonar-scanner"
-                    }
+                // Connects to the server
+                withSonarQubeEnv('sonarqube-server') {
+                    sh "${scannerHome}/bin/sonar-scanner"
                 }
             }
         }
         
-        //Wait for SonarQube to finish processing and download the report
-        stage('Quality Gate & Export') {
+        // This pauses the pipeline until SonarQube finishes processing
+        stage("Quality Gate") {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
-                    // 1. Wait for SonarQube to finish analysis on the server side
-                    waitForQualityGate abortPipeline: false
-                }
-                
-                // 2. Download the issues from SonarQube API
-                // We use the projectKey from your sonar-project.properties file
-                script {
-                    echo '--- Fetching SonarQube Issues ---'
-                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                        sh '''
-                            curl -u $SONAR_TOKEN: \
-                            "http://sonarqube:9000/api/issues/search?componentKeys=CodeFortress-Project&ps=500" \
-                            > sonar_issues.json
-                        '''
-                    }
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
@@ -107,45 +82,28 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'defectdojo-api-key', variable: 'DOJO_API_KEY')]) {
                     script {
-                        // Setup the Uploader Container
-                        sh 'docker rm -f dd-uploader 2>/dev/null || true'
-                        sh 'docker run -d --name dd-uploader python:3.9-slim sleep 300'
-                        sh 'docker cp defectdojo_upload.py dd-uploader:/tmp/upload_script.py'
                         
-                        // --- UPLOAD 1: ZAP (DAST) ---
                         if (fileExists('zap_reports/report.xml')) {
-                            echo '--- Uploading ZAP Report ---'
-                            sh 'docker cp zap_reports/report.xml dd-uploader:/tmp/zap_report.xml'
-                            sh '''
-                                docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
-                                bash -c "pip install requests && python /tmp/upload_script.py 'ZAP Scan' /tmp/zap_report.xml"
-                            '''
-                        }
-
-                        // --- UPLOAD 2: BANDIT (SAST) ---
-                        if (fileExists('bandit_report.json')) {
-                            echo '--- Uploading Bandit Report ---'
-                            sh 'docker cp bandit_report.json dd-uploader:/tmp/bandit_report.json'
-                            sh '''
-                                docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
-                                bash -c "python /tmp/upload_script.py 'Bandit Scan' /tmp/bandit_report.json"
-                            '''
-                        }
-
-
-                        // --- UPLOAD 3: SONARQUBE (SAST) ---
-                        if (fileExists('sonar_issues.json')) {
-                            echo '--- Uploading SonarQube Report ---'
-                            sh 'docker cp sonar_issues.json dd-uploader:/tmp/sonar_issues.json'
+                            echo '--- Found ZAP Report. Uploading... ---'
                             
-                            // DefectDojo Scanner Name: "SonarQube API Import"
+                            sh 'docker rm -f dd-uploader 2>/dev/null || true'
+                            sh 'docker run -d --name dd-uploader python:3.9-slim sleep 300'
+                            
+                            sh 'docker cp defectdojo_upload.py dd-uploader:/tmp/upload_script.py'
+                            sh 'docker cp zap_reports/report.xml dd-uploader:/tmp/report.xml'
+                            
                             sh '''
                                 docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
-                                bash -c "python /tmp/upload_script.py 'SonarQube API Import' /tmp/sonar_issues.json"
+                                bash -c "pip install requests && python /tmp/upload_script.py 'ZAP Scan' /tmp/report.xml"
                             '''
-                        }
+                            
+                            sh 'docker rm -f dd-uploader'
                         
-                        sh 'docker rm -f dd-uploader'
+                        } else {
+
+                            echo '⚠️ No ZAP Report found (zap_reports/report.xml is missing).'
+                            echo 'Skipping DefectDojo upload.'
+                        }
                     }
                 }
             }
@@ -200,7 +158,7 @@ pipeline {
                 echo '✅ PIPELINE SUCCESS! Sending Alert...'
                 sh '''
                     
-                    printf '{"text": "✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and ready for merge.\\n*Project:* %s\\n*Build:* %s"}' "$JOB_NAME" "$BUILD_NUMBER" > payload.json
+                    printf '{"text": "✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and merged. \\n*Project:* %s\\n*Build:* %s"}' "$JOB_NAME" "$BUILD_NUMBER" > payload.json
                     
                     curl -v -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
                 '''
