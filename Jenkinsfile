@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Defines the tool
-        scannerHome = tool 'sonar-scanner'
+        scannerHome = tool 'SonarScanner'
         GIT_CREDS = credentials('github-write-token')
         TRUFFLEHOG_VERSION = '3.63.0'
         HOST_IP = '172.17.0.1'
@@ -47,7 +47,7 @@ pipeline {
 
                     // --- PART 2: SONARQUBE SCAN ---
                     echo '--- Running SonarQube Scanner ---'
-                    withSonarQubeEnv('SonarQube-Server') {
+                    withSonarQubeEnv('SonarQube') {
                         sh "${scannerHome}/bin/sonar-scanner"
                     }
                 }
