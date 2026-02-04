@@ -58,14 +58,16 @@ pipeline {
                 script {
                     echo '--- Starting ZAP Dynamic Scan ---'
                     
+                    // Create directory for the report
                     sh 'mkdir -p zap_reports'
                     sh 'chmod 777 zap_reports'
                     
                     try {
                         sh '''
+                            # Image changed from 'owasp/zap2docker-stable' to 'zaproxy/zap-stable'
                             docker run --rm -u 0 \
                             -v $(pwd)/zap_reports:/zap/wrk/:rw \
-                            owasp/zap2docker-stable \
+                            zaproxy/zap-stable \
                             zap-baseline.py \
                             -t http://172.17.0.1:5000 \
                             -r report.xml \
