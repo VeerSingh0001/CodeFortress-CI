@@ -156,11 +156,9 @@ pipeline {
             script {
                 echo '🚨 PIPELINE FAILED! Sending Alert...'
                 sh '''
-                    # Use printf to safely create the JSON. 
-                    # %s is a placeholder for the variables at the end.
                     printf '{"text": "🚨 *SECURITY ALERT: Pipeline Failed!*\\n*Project:* %s\\n*Build:* %s\\n*Check DefectDojo for details."}' "$JOB_NAME" "$BUILD_NUMBER" > payload.json
                     
-                    # Send the file
+                
                     curl -v -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
                 '''
             }
@@ -170,7 +168,7 @@ pipeline {
             script {
                 echo '✅ PIPELINE SUCCESS! Sending Alert...'
                 sh '''
-                    # Use printf for the Success message too
+                    
                     printf '{"text": "✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and ready for merge.\\n*Project:* %s\\n*Build:* %s"}' "$JOB_NAME" "$BUILD_NUMBER" > payload.json
                     
                     curl -v -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
