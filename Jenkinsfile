@@ -7,6 +7,7 @@ pipeline {
         GIT_CREDS = credentials('github-write-token')
         TRUFFLEHOG_VERSION = '3.63.0'
         HOST_IP = '172.17.0.1'
+        SLACK_WEBHOOK = credentials('slack-webhook-url')
     }
 
     stages {
@@ -157,7 +158,7 @@ pipeline {
                 sh """
                     curl -X POST -H 'Content-type: application/json' \
                     --data '{"text":"🚨 *SECURITY ALERT: Pipeline Failed!* \\n*Project:* ${env.JOB_NAME} \\n*Build:* #${env.BUILD_NUMBER} \\n*Check DefectDojo for details.*"}' \
-                    ${SLACK_WEBHOOK}
+                    ${env.SLACK_WEBHOOK}  // <--- ADD "env." HERE
                 """
             }
         }
@@ -168,7 +169,7 @@ pipeline {
                 sh """
                     curl -X POST -H 'Content-type: application/json' \
                     --data '{"text":"✅ *SUCCESS: Pipeline Passed.* \\nCode is secure and ready for merge. \\n*Project:* ${env.JOB_NAME} \\n*Build:* #${env.BUILD_NUMBER}"}' \
-                    ${SLACK_WEBHOOK}
+                    ${env.SLACK_WEBHOOK}  // <--- ADD "env." HERE
                 """
             }
         }
