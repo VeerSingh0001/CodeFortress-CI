@@ -154,22 +154,28 @@ pipeline {
     post {
         failure {
             script {
-                echo '🚨 PIPELINE FAILED! Sending Alert via Curl...'
+                echo '🚨 PIPELINE FAILED! Sending Alert...'
                 sh '''
-                    curl -X POST -H "Content-type: application/json" \
-                    --data "{\"text\":\"🚨 *SECURITY ALERT: Pipeline Failed!* \\n*Project:* $JOB_NAME \\n*Build:* $BUILD_NUMBER \\n*Check DefectDojo for details.*\"}" \
-                    "$SLACK_WEBHOOK"
+                    cat <<EOF > payload.json
+                    {
+                        "text": "🚨 *SECURITY ALERT: Pipeline Failed!*\\n*Project:* ${JOB_NAME}\\n*Build:* ${BUILD_NUMBER}\\n*Check DefectDojo for details.*"
+                    }
+                    EOF
+                    curl -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
                 '''
             }
         }
 
         success {
             script {
-                echo '✅ PIPELINE SUCCESS! Sending Alert via Curl...'
+                echo '✅ PIPELINE SUCCESS! Sending Alert...'
                 sh '''
-                    curl -X POST -H "Content-type: application/json" \
-                    --data "{\"text\":\"✅ *SUCCESS: Pipeline Passed.* \\nCode is secure and ready for merge. \\n*Project:* $JOB_NAME \\n*Build:* $BUILD_NUMBER\"}" \
-                    "$SLACK_WEBHOOK"
+                    cat <<EOF > payload.json
+                    {
+                        "text": "✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and ready for merge.\\n*Project:* ${JOB_NAME}\\n*Build:* ${BUILD_NUMBER}"
+                    }
+                    EOF
+                    curl -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
                 '''
             }
         }
