@@ -102,24 +102,33 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'defectdojo-api-key', variable: 'DOJO_API_KEY')]) {
                     script {
-                        echo '--- Uploading Reports to DefectDojo ---'
                         
-                        sh 'docker rm -f dd-uploader 2>/dev/null || true'
-                        sh 'docker run -d --name dd-uploader python:3.9-slim sleep 300'
+                        if (fileExists('zap_reports/report.xml')) {
+                            echo '--- Found ZAP Report. Uploading... ---'
+                            
+                            sh 'docker rm -f dd-uploader 2>/dev/null || true'
+                            sh 'docker run -d --name dd-uploader python:3.9-slim sleep 300'
+                            
+                            sh 'docker cp defectdojo_upload.py dd-uploader:/tmp/upload_script.py'
+                            sh 'docker cp zap_reports/report.xml dd-uploader:/tmp/report.xml'
+                            
+                            sh '''
+                                docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
+                                bash -c "pip install requests && python /tmp/upload_script.py 'ZAP Scan' /tmp/report.xml"
+                            '''
+                            
+                            sh 'docker rm -f dd-uploader'
                         
-                        sh 'docker cp defectdojo_upload.py dd-uploader:/tmp/upload_script.py'
-                        sh 'docker cp zap_reports/report.xml dd-uploader:/tmp/report.xml'
-                        
-                        sh '''
-                            docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
-                            bash -c "pip install requests && python /tmp/upload_script.py 'ZAP Scan' /tmp/report.xml"
-                        '''
-                        
-                        sh 'docker rm -f dd-uploader'
+                        } else {
+                            
+                            echo '⚠️ No ZAP Report found (zap_reports/report.xml is missing).'
+                            echo 'Skipping DefectDojo upload.'
+                        }
                     }
                 }
             }
         }
+
 
         stage('Final Security Decision') {
             steps {
