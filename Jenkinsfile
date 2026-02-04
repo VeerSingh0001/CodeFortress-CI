@@ -155,25 +155,24 @@ pipeline {
         failure {
             script {
                 echo '🚨 PIPELINE FAILED! Sending Alert via Curl...'
-                sh """
-                    curl -X POST -H 'Content-type: application/json' \
-                    --data '{"text":"🚨 *SECURITY ALERT: Pipeline Failed!* \\n*Project:* ${env.JOB_NAME} \\n*Build:* #${env.BUILD_NUMBER} \\n*Check DefectDojo for details.*"}' \
-                    ${env.SLACK_WEBHOOK}  // <--- ADD "env." HERE
-                """
+                sh '''
+                    curl -X POST -H "Content-type: application/json" \
+                    --data "{\"text\":\"🚨 *SECURITY ALERT: Pipeline Failed!* \\n*Project:* $JOB_NAME \\n*Build:* $BUILD_NUMBER \\n*Check DefectDojo for details.*\"}" \
+                    "$SLACK_WEBHOOK"
+                '''
             }
         }
 
         success {
             script {
                 echo '✅ PIPELINE SUCCESS! Sending Alert via Curl...'
-                sh """
-                    curl -X POST -H 'Content-type: application/json' \
-                    --data '{"text":"✅ *SUCCESS: Pipeline Passed.* \\nCode is secure and ready for merge. \\n*Project:* ${env.JOB_NAME} \\n*Build:* #${env.BUILD_NUMBER}"}' \
-                    ${env.SLACK_WEBHOOK}  // <--- ADD "env." HERE
-                """
+                sh '''
+                    curl -X POST -H "Content-type: application/json" \
+                    --data "{\"text\":\"✅ *SUCCESS: Pipeline Passed.* \\nCode is secure and ready for merge. \\n*Project:* $JOB_NAME \\n*Build:* $BUILD_NUMBER\"}" \
+                    "$SLACK_WEBHOOK"
+                '''
             }
         }
     }
-
 }
 
