@@ -156,12 +156,17 @@ pipeline {
             script {
                 echo '🚨 PIPELINE FAILED! Sending Alert...'
                 sh '''
-                    cat <<EOF > payload.json
-                    {
-                        "text": "🚨 *SECURITY ALERT: Pipeline Failed!*\\n*Project:* ${JOB_NAME}\\n*Build:* ${BUILD_NUMBER}\\n*Check DefectDojo for details.*"
-                    }
-                    EOF
-                    curl -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
+                    # 1. Debug: Check if the Secret Variable is actually loaded
+                    if [ -z "$SLACK_WEBHOOK" ]; then 
+                        echo "❌ ERROR: SLACK_WEBHOOK variable is EMPTY! Check your Jenkins Credentials."
+                        exit 1
+                    fi
+
+                    # 2. Create the payload using ECHO (Avoids the EOF indentation bug)
+                    echo "{\"text\": \"🚨 *SECURITY ALERT: Pipeline Failed!*\\n*Project:* ${JOB_NAME}\\n*Build:* ${BUILD_NUMBER}\\n*Check DefectDojo for details.*\"}" > payload.json
+
+                    # 3. Send it (Added -v for verbose logs to see the handshake)
+                    curl -v -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
                 '''
             }
         }
@@ -170,12 +175,9 @@ pipeline {
             script {
                 echo '✅ PIPELINE SUCCESS! Sending Alert...'
                 sh '''
-                    cat <<EOF > payload.json
-                    {
-                        "text": "✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and ready for merge.\\n*Project:* ${JOB_NAME}\\n*Build:* ${BUILD_NUMBER}"
-                    }
-                    EOF
-                    curl -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
+                    echo "{\"text\": \"✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and ready for merge.\\n*Project:* ${JOB_NAME}\\n*Build:* ${BUILD_NUMBER}\"}" > payload.json
+                    
+                    curl -v -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
                 '''
             }
         }
