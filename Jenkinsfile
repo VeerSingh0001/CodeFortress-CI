@@ -35,6 +35,8 @@ pipeline {
 
         stage('Security Gate 2: SAST (Bandit & SonarQube)') {
             steps {
+                echo '--- Running Static Analysis ---'
+
                 script {
                     // --- PART 1: BANDIT ---
                     echo '--- Running Bandit SAST ---'
@@ -45,14 +47,13 @@ pipeline {
 
                     // --- PART 2: SONARQUBE SCAN ---
                     echo '--- Running SonarQube Scanner ---'
-                    withSonarQubeEnv('SonarQube-Server') { 
-                        sh '/var/jenkins_home/tools/hudson.plugins.sonar.SonarRunnerInstallation/SonarScanner/bin/sonar-scanner'
-                    }
+                    withSonarQubeEnv('SonarQube-Server') {
+                        sh "${scannerHome}/bin/sonar-scanner"
                 }
             }
         }
         
-        // NEW STAGE: Wait for SonarQube to finish processing and download the report
+        //Wait for SonarQube to finish processing and download the report
         stage('Quality Gate & Export') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
@@ -127,6 +128,19 @@ pipeline {
                             sh '''
                                 docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
                                 bash -c "python /tmp/upload_script.py 'Bandit Scan' /tmp/bandit_report.json"
+                            '''
+                        }
+
+
+                        // --- UPLOAD 3: SONARQUBE (SAST) ---
+                        if (fileExists('sonar_issues.json')) {
+                            echo '--- Uploading SonarQube Report ---'
+                            sh 'docker cp sonar_issues.json dd-uploader:/tmp/sonar_issues.json'
+                            
+                            // DefectDojo Scanner Name: "SonarQube API Import"
+                            sh '''
+                                docker exec -e DOJO_API_KEY=$DOJO_API_KEY dd-uploader \
+                                bash -c "python /tmp/upload_script.py 'SonarQube API Import' /tmp/sonar_issues.json"
                             '''
                         }
                         
