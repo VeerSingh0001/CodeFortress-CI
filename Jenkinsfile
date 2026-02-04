@@ -156,16 +156,11 @@ pipeline {
             script {
                 echo '🚨 PIPELINE FAILED! Sending Alert...'
                 sh '''
-                    # 1. Debug: Check if the Secret Variable is actually loaded
-                    if [ -z "$SLACK_WEBHOOK" ]; then 
-                        echo "❌ ERROR: SLACK_WEBHOOK variable is EMPTY! Check your Jenkins Credentials."
-                        exit 1
-                    fi
-
-                    # 2. Create the payload using ECHO (Avoids the EOF indentation bug)
-                    echo "{\"text\": \"🚨 *SECURITY ALERT: Pipeline Failed!*\\n*Project:* ${JOB_NAME}\\n*Build:* ${BUILD_NUMBER}\\n*Check DefectDojo for details.*\"}" > payload.json
-
-                    # 3. Send it (Added -v for verbose logs to see the handshake)
+                    # Use printf to safely create the JSON. 
+                    # %s is a placeholder for the variables at the end.
+                    printf '{"text": "🚨 *SECURITY ALERT: Pipeline Failed!*\\n*Project:* %s\\n*Build:* %s\\n*Check DefectDojo for details."}' "$JOB_NAME" "$BUILD_NUMBER" > payload.json
+                    
+                    # Send the file
                     curl -v -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
                 '''
             }
@@ -175,7 +170,8 @@ pipeline {
             script {
                 echo '✅ PIPELINE SUCCESS! Sending Alert...'
                 sh '''
-                    echo "{\"text\": \"✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and ready for merge.\\n*Project:* ${JOB_NAME}\\n*Build:* ${BUILD_NUMBER}\"}" > payload.json
+                    # Use printf for the Success message too
+                    printf '{"text": "✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and ready for merge.\\n*Project:* %s\\n*Build:* %s"}' "$JOB_NAME" "$BUILD_NUMBER" > payload.json
                     
                     curl -v -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
                 '''
@@ -183,4 +179,3 @@ pipeline {
         }
     }
 }
-
