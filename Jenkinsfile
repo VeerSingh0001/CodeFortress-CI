@@ -35,23 +35,42 @@ pipeline {
 
         stage('Security Gate 2: SAST (Bandit & SonarQube)') {
             steps {
-                echo '--- Running Static Analysis ---'
+                script {
+                    // --- PART 1: BANDIT ---
+                    echo '--- Running Bandit SAST ---'
+                    sh '''
+                        docker run --rm -v $(pwd):/src python:3.9-slim \
+                        bash -c "pip install bandit && bandit -r /src -f json -o /src/bandit_report.json || true"
+                    '''
 
-                sh 'pip install bandit'
-                sh 'bandit -r . -f json -o bandit_report.json || true'
-
-                // Connects to the server
-                withSonarQubeEnv('sonarqube-server') {
-                    sh "${scannerHome}/bin/sonar-scanner"
+                    // --- PART 2: SONARQUBE SCAN ---
+                    echo '--- Running SonarQube Scanner ---'
+                    withSonarQubeEnv('SonarQube-Server') { 
+                        sh '/var/jenkins_home/tools/hudson.plugins.sonar.SonarRunnerInstallation/SonarScanner/bin/sonar-scanner'
+                    }
                 }
             }
         }
         
-        // This pauses the pipeline until SonarQube finishes processing
-        stage("Quality Gate") {
+        // NEW STAGE: Wait for SonarQube to finish processing and download the report
+        stage('Quality Gate & Export') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                    // 1. Wait for SonarQube to finish analysis on the server side
+                    waitForQualityGate abortPipeline: false
+                }
+                
+                // 2. Download the issues from SonarQube API
+                // We use the projectKey from your sonar-project.properties file
+                script {
+                    echo '--- Fetching SonarQube Issues ---'
+                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                        sh '''
+                            curl -u $SONAR_TOKEN: \
+                            "http://sonarqube:9000/api/issues/search?componentKeys=CodeFortress-Project&ps=500" \
+                            > sonar_issues.json
+                        '''
+                    }
                 }
             }
         }
