@@ -58,16 +58,14 @@ pipeline {
                 script {
                     echo '--- Starting ZAP Dynamic Scan ---'
                     
-                    // Create directory for the report
                     sh 'mkdir -p zap_reports'
                     sh 'chmod 777 zap_reports'
                     
                     try {
                         sh '''
-                            # Image changed from 'owasp/zap2docker-stable' to 'zaproxy/zap-stable'
                             docker run --rm -u 0 \
                             -v $(pwd)/zap_reports:/zap/wrk/:rw \
-                            zaproxy/zap-stable \
+                            owasp/zap2docker-stable \
                             zap-baseline.py \
                             -t http://172.17.0.1:5000 \
                             -r report.xml \
@@ -160,7 +158,7 @@ pipeline {
                 echo '✅ PIPELINE SUCCESS! Sending Alert...'
                 sh '''
                     
-                    printf '{"text": "✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and merged. \\n*Project:* %s\\n*Build:* %s"}' "$JOB_NAME" "$BUILD_NUMBER" > payload.json
+                    printf '{"text": "✅ *SUCCESS: Pipeline Passed.*\\nCode is secure and ready for merge.\\n*Project:* %s\\n*Build:* %s"}' "$JOB_NAME" "$BUILD_NUMBER" > payload.json
                     
                     curl -v -X POST -H "Content-type: application/json" --data @payload.json "$SLACK_WEBHOOK"
                 '''
