@@ -49,6 +49,7 @@ pipeline {
                     echo '--- Running SonarQube Scanner ---'
                     withSonarQubeEnv('SonarQube-Server') {
                         sh "${scannerHome}/bin/sonar-scanner"
+                    }
                 }
             }
         }
